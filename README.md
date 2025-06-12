@@ -20,7 +20,7 @@ A simple REST API for hotel reservations built with Express, TypeScript, Prettie
 1. **Clone the repository**
 
 ```bash
-    git clone https://github.com/yourusername/hotel-reservation-api.git
+    git clone https://github.com/kichirouoda/hotel-reservation-api.git
     cd hotel-reservation-api
 ```
 2. **Install dependencies**
