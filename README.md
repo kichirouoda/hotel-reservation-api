@@ -22,29 +22,32 @@ A simple REST API for hotel reservations built with Express, TypeScript, Prettie
 ```bash
     git clone https://github.com/yourusername/hotel-reservation-api.git
     cd hotel-reservation-api
-
+```
 2. **Install dependencies**
-
 ```bash
     npm install
-
+```
 3. **Set up environment variables** 
-   Create a `.env` file in the root directory and add the following variables:
+    Create a `.env` file in the root directory and add the following variables:
+```bash
     DB_HOST=localhost
     DB_PORT=5432
     DB_USERNAME=postgres
     DB_PASSWORD=password
     DB_NAME=databases
     PORT=3000
+```
 
-4. **Set up the database and seeder**
-    - psql -U postgres -d databases -f src/config/schema.sql
-    - npx ts-node src/config/seed-db.ts
-
-5. **Run the application**
+5. **Set up the database and seeder**
+```bash
+    psql -U postgres -d databases -f src/config/schema.sql
+    npx ts-node src/config/seed-db.ts
+```
+7. **Run the application**
+```bash
     npm run dev
-
-6. **API Endpoints**
+```
+9. **API Endpoints**
     - GET /room/all-room-types : Get all room types
     - GET /room/room-types/:id : Get room type by ID
     - POST /room/room-types : Create a new room type
