@@ -52,68 +52,127 @@ export async function getReservationById(id: string): Promise<any> {
     };
 }
 
-export async function getReservationsByDateRange(
-    startDate: string,
-    endDate: string
-  ): Promise<ReservationWithRoom[]> {
-    // Mendapatkan data reservasi
-    const reservationsResult = await db.query(
-      `SELECT r.*, rm.room_number, rt.name as room_type_name,
-       TO_CHAR(r.check_in_date, 'YYYY-MM-DD') as formatted_check_in_date,
-       TO_CHAR(r.check_out_date, 'YYYY-MM-DD') as formatted_check_out_date,
-       TO_CHAR(r.created_at, 'YYYY-MM-DD') as formatted_created_at
-       FROM reservations r
-       JOIN rooms rm ON r.room_id = rm.id
-       JOIN room_types rt ON rm.room_type_id = rt.id
-       WHERE 
-         (r.check_in_date <= $2 AND r.check_out_date >= $1)`,
-      [startDate, endDate]
-    );
+// export async function getReservationsByDateRange(
+//     startDate: string,
+//     endDate: string
+//   ): Promise<ReservationWithRoom[]> {
+//     // Mendapatkan data reservasi
+//     const reservationsResult = await db.query(
+//       `SELECT r.*, rm.room_number, rt.name as room_type_name,
+//        TO_CHAR(r.check_in_date, 'YYYY-MM-DD') as formatted_check_in_date,
+//        TO_CHAR(r.check_out_date, 'YYYY-MM-DD') as formatted_check_out_date,
+//        TO_CHAR(r.created_at, 'YYYY-MM-DD') as formatted_created_at
+//        FROM reservations r
+//        JOIN rooms rm ON r.room_id = rm.id
+//        JOIN room_types rt ON rm.room_type_id = rt.id
+//       WHERE 
+//       (
+//         r.check_in_date BETWEEN $1 AND $2
+//         OR r.check_out_date BETWEEN $1 AND $2
+//         OR $1 BETWEEN r.check_in_date AND r.check_out_date
+//         OR $2 BETWEEN r.check_in_date AND r.check_out_date
+//       )`,
+//       [startDate, endDate]
+//     );
     
-    // Jika tidak ada reservasi yang ditemukan, kembalikan array kosong
-    if (reservationsResult.rows.length === 0) {
-      return [];
-    }
+//     // Jika tidak ada reservasi yang ditemukan, kembalikan array kosong
+//     if (reservationsResult.rows.length === 0) {
+//       return [];
+//     }
     
-    // Mendapatkan ID semua reservasi untuk query pembayaran
-    const reservationIds = reservationsResult.rows.map(row => row.id);
+//     // Mendapatkan ID semua reservasi untuk query pembayaran
+//     const reservationIds = reservationsResult.rows.map(row => row.id);
     
-    // Query untuk mendapatkan total pembayaran untuk setiap reservasi
-    const paymentsResult = await db.query(
-      `SELECT reservation_id, COALESCE(SUM(amount), 0) as paid_amount
-       FROM payments
-       WHERE reservation_id = ANY($1)
-       GROUP BY reservation_id`,
-      [reservationIds]
-    );
+//     // Query untuk mendapatkan total pembayaran untuk setiap reservasi
+//     const paymentsResult = await db.query(
+//       `SELECT reservation_id, COALESCE(SUM(amount), 0) as paid_amount
+//        FROM payments
+//        WHERE reservation_id = ANY($1)
+//        GROUP BY reservation_id`,
+//       [reservationIds]
+//     );
     
-    // Membuat map untuk mempermudah akses data pembayaran
-    const paymentMap = new Map();
-    paymentsResult.rows.forEach(row => {
-      paymentMap.set(row.reservation_id, parseFloat(row.paid_amount));
-    });
+//     // Membuat map untuk mempermudah akses data pembayaran
+//     const paymentMap = new Map();
+//     paymentsResult.rows.forEach(row => {
+//       paymentMap.set(row.reservation_id, parseFloat(row.paid_amount));
+//     });
     
-    // Transform each row to match the desired response format
-    return reservationsResult.rows.map(row => {
-      const totalAmount = parseFloat(row.total_amount);
-      const paidAmount = paymentMap.get(row.id) || 0;
-      const outstandingBalance = totalAmount - paidAmount;
+//     // Transform each row to match the desired response format
+//     return reservationsResult.rows.map(row => {
+//       const totalAmount = parseFloat(row.total_amount);
+//       const paidAmount = paymentMap.get(row.id) || 0;
+//       const outstandingBalance = totalAmount - paidAmount;
       
-      return {
-        id: row.id,
-        roomId: row.room_id,
-        checkInDate: row.formatted_check_in_date,
-        checkOutDate: row.formatted_check_out_date,
-        totalAmount: totalAmount,
-        createdAt: row.formatted_created_at,
-        roomNumber: row.room_number,
-        roomTypeName: row.room_type_name,
-        paidAmount: paidAmount,
-        outstandingBalance: outstandingBalance,
-        // Tetap sertakan properti asli untuk kompatibilitas
-        total_amount: row.total_amount
-      };
-    });
+//       return {
+//         id: row.id,
+//         roomId: row.room_id,
+//         checkInDate: row.formatted_check_in_date,
+//         checkOutDate: row.formatted_check_out_date,
+//         totalAmount: totalAmount,
+//         createdAt: row.formatted_created_at,
+//         roomNumber: row.room_number,
+//         roomTypeName: row.room_type_name,
+//         paidAmount: paidAmount,
+//         outstandingBalance: outstandingBalance,
+//         // Tetap sertakan properti asli untuk kompatibilitas
+//         total_amount: row.total_amount
+//       };
+//     });
+// }
+
+export async function getReservationsByDateRange(
+  startDate: string,
+  endDate: string
+): Promise<ReservationWithRoom[]> {
+
+  const reservationsResult = await db.query(
+    `SELECT 
+      r.id, 
+      r.room_id, 
+      r.total_amount,
+      TO_CHAR(r.check_in_date, 'YYYY-MM-DD') AS formatted_check_in_date,
+      TO_CHAR(r.check_out_date, 'YYYY-MM-DD') AS formatted_check_out_date,
+      TO_CHAR(r.created_at, 'YYYY-MM-DD') AS formatted_created_at,
+      rm.room_number,
+      rt.name AS room_type_name,
+      COALESCE(p.paid_amount, 0) AS paid_amount,
+      (r.total_amount - COALESCE(p.paid_amount, 0)) AS outstanding_balance
+    FROM reservations r
+    JOIN rooms rm ON r.room_id = rm.id
+    JOIN room_types rt ON rm.room_type_id = rt.id
+    LEFT JOIN (
+      SELECT reservation_id, SUM(amount) AS paid_amount
+      FROM payments
+      GROUP BY reservation_id
+    ) p ON r.id = p.reservation_id
+    WHERE 
+      (
+        r.check_in_date BETWEEN $1 AND $2
+        OR r.check_out_date BETWEEN $1 AND $2
+        OR $1 BETWEEN r.check_in_date AND r.check_out_date
+        OR $2 BETWEEN r.check_in_date AND r.check_out_date
+      )`,
+    [startDate, endDate]
+  );
+
+  if (reservationsResult.rows.length === 0) {
+    return [];
+  }
+
+  return reservationsResult.rows.map(row => ({
+    id: row.id,
+    roomId: row.room_id,
+    checkInDate: row.formatted_check_in_date,
+    checkOutDate: row.formatted_check_out_date,
+    totalAmount: parseFloat(row.total_amount),
+    createdAt: row.formatted_created_at,
+    roomNumber: row.room_number,
+    roomTypeName: row.room_type_name,
+    paidAmount: parseFloat(row.paid_amount),
+    outstandingBalance: parseFloat(row.outstanding_balance),
+    total_amount: row.total_amount 
+  }));
 }
 
 export async function getReservationWithPayments(id: string): Promise<Reservation | null> {

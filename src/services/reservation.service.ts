@@ -42,6 +42,11 @@ export async function createReservation(data: CreateReservationDto): Promise<Res
         await reservationModel.deleteReservation(reservation.id);
         throw new Error('Initial payment minimum 50%');
       }
+
+      if(initialPayment > totalAmount){
+        await reservationModel.deleteReservation(reservation.id);
+        throw new Error('initialPayment cannot be more than totalAmount');
+      }
       await paymentModel.createPayment(reservation.id, initialPayment);
     }
     
